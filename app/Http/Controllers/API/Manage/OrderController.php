@@ -308,7 +308,7 @@ class OrderController extends Controller
                 ], 404);
             }
 
-            $query->whereHas('offer', function ($q) use ($mitra) {
+            $query->whereHas('offers', function ($q) use ($mitra) {
                 $q->where('mitra_id', $mitra->id);
             });
         }
