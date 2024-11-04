@@ -308,7 +308,9 @@ class OrderController extends Controller
                 ], 404);
             }
 
-            $query->where('mitra_id', $mitra->id);
+            $query->whereHas('offer', function ($q) use ($mitra) {
+                $q->where('mitra_id', $mitra->id);
+            });
         }
 
         // Cek jika ada id untuk mendapatkan order tertentu
@@ -364,7 +366,11 @@ class OrderController extends Controller
         }
 
         if ($statusQuery) {
-            $query->where('status', $statusQuery);
+            if ($statusQuery == 'complete') {
+                $query->whereIn('status', ['complete', 'rated']);
+            } else {
+                $query->where('status', $statusQuery);
+            }
         }
 
         // Jika ada query stats, kita jalankan logika untuk statistik
