@@ -53,9 +53,9 @@ class User extends Authenticatable
         return $this->hasMany(Message::class);
     }
 
-    public function mitras()
+    public function mitra()
     {
-        return $this->hasMany(Mitra::class);
+        return $this->belongsTo(Mitra::class);
     }
 
     public function ratings()

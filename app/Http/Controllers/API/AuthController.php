@@ -159,7 +159,7 @@ class AuthController extends Controller
         $user = $request->user();
         $imageUrl = asset($user->image_profile);
 
-        return response()->json([
+        $response = [
             'user' => [
                 'id' => $user->id,
                 'full_name' => $user->full_name,
@@ -169,7 +169,16 @@ class AuthController extends Controller
                 'image_profile' => $imageUrl,
                 'phone_number_verified_at' => $user->phone_number_verified_at
             ]
-        ], 200);
+        ];
+
+
+        if ($user->role == 'mitra') {
+            $response['user']['saldo'] = $user->mitra->saldo ?? 0;
+            dd($response);
+        }
+
+
+        return response()->json($response, 200);
     }
 
     public function changePassword(Request $request)
