@@ -17,8 +17,8 @@ use Illuminate\Http\Request;
 |
 */
 
-// Route::get('/', function () {
-//     return "<h1>SELAMAT DATANG</h1>"
-// }
+Route::get('/', function () {
+    return "<h1 style='text-align: center; margin-top: 200px;'>SELAMAT DATANG</h1>";
+});
 
 require __DIR__ . '/auth.php';
