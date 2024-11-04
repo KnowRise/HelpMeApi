@@ -31,7 +31,7 @@ class AdminController extends Controller
         $user->phone_number = $request->phone_number;
         $user->password = bcrypt($request->password);
         $user->role = $request->role;
-        $user->image_profile = 'profiles/default.jpeg';
+        $user->image_profile = 'images/profiles/default.jpeg';
         $user->save();
 
         $rolePrefix = 'ADM';

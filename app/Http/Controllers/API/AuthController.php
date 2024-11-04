@@ -47,10 +47,10 @@ class AuthController extends Controller
         if ($request->hasFile('image_profile')) {
             $image = $request->file('image_profile');
             $imageName = Str::uuid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('profile/' . $request->username, $imageName, 'public');
+            $imagePath = $image->storeAs('images/profiles/' . $request->username, $imageName, 'public');
             $user->image_profile = $imagePath;
         } else {
-            $user->image_profile = 'profiles/default.jpeg';
+            $user->image_profile = 'images/profiles/default.jpeg';
         }
 
         $user->save();
@@ -262,7 +262,7 @@ class AuthController extends Controller
         if ($request->hasFile('image_profile')) {
             $image = $request->file('image_profile');
             $imageName = Str::uuid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('profiles/' . $user->username, $imageName, 'public');
+            $imagePath = $image->storeAs('images/profiles/' . $user->username, $imageName, 'public');
             $user->image_profile = $imagePath;
         }
 

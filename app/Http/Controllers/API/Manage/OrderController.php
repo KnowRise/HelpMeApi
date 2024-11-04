@@ -60,7 +60,7 @@ class OrderController extends Controller
         if ($request->has('attachments')) {
             foreach ($request->attachments as $attachment) {
                 $imageName = Str::uuid() . '.' . $attachment->getClientOriginalExtension();
-                $imagePath = $attachment->storeAs('orders/' . $order->id, $imageName, 'public');
+                $imagePath = $attachment->storeAs('images/orders/' . $order->id, $imageName, 'public');
 
                 $image = new OrderAttachment();
                 $image->image_path = $imagePath;

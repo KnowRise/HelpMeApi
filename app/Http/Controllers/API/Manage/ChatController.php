@@ -99,7 +99,7 @@ class ChatController extends Controller
         // Jika attachment diisi, simpan attachment dan set message ke null
         if ($request->hasFile('attachment')) {
             $attachmentName = Str::uuid() . '.' . $request->attachment->getClientOriginalExtension();
-            $path = $request->file('attachment')->storeAs('chats/' . $chat->id, $attachmentName, 'public');
+            $path = $request->file('attachment')->storeAs('images/chats/' . $chat->id, $attachmentName, 'public');
             $message->attachment = $path;
             $message->message = null;  // Set message ke null jika attachment diisi
         }
