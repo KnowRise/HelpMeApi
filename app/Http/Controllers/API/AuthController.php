@@ -82,7 +82,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $appTypeQuery = $request->query('app_type');
         if (!$appTypeQuery) {
             return response()->json(['message' => 'app_type is required'], 400);
         }
@@ -131,6 +130,7 @@ class AuthController extends Controller
                             $fcm->save();
                         }
                         $token = $user->createToken($user->username)->plainTextToken;
+                        
                         return response()->json([
                             'message' => 'User logged in successfully',
                             'token' => $token,
