@@ -174,7 +174,6 @@ class AuthController extends Controller
 
         if ($user->role == 'mitra') {
             $response['user']['saldo'] = $user->mitra->saldo ?? 0;
-            dd($response);
         }
 
 
