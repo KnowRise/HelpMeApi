@@ -19,15 +19,15 @@ class NotificationController extends Controller
         return $credentials->fetchAuthToken()['access_token'];
     }
 
-    public function notip(Request $request)
-    {
-        $tokens = $request->token;
-        $title = $request->title;
-        $body = $request->body;
-        $data = $request->data;
+    // public function notip(Request $request)
+    // {
+    //     $tokens = $request->token;
+    //     $title = $request->title;
+    //     $body = $request->body;
+    //     $data = $request->data;
 
-        return $this->sendNotification($tokens, $title, $body, $data);
-    }
+    //     return $this->sendNotification($tokens, $title, $body, $data);
+    // }
 
     public function sendNotification($tokens, $title, $body, $data = null)
     {
