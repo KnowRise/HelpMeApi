@@ -19,71 +19,15 @@ class NotificationController extends Controller
         return $credentials->fetchAuthToken()['access_token'];
     }
 
-    // public function notip(Request $request)
-    // {
-    //     $tokens = $request->token;
-    //     $title = $request->title;
-    //     $body = $request->body;
-    //     $data = $request->data;
+    public function notip(Request $request)
+    {
+        $tokens = $request->token;
+        $title = $request->title;
+        $body = $request->body;
+        $data = $request->data;
 
-    //     return $this->sendNotification($tokens, $title, $body, $data);
-    // }
-
-    // public function sendNotification($token, $title, $body, $data = null)
-    // {
-    //     $projectName = env('FIREBASE_PROJECT_NAME');
-    //     $client = new \GuzzleHttp\Client();
-    //     $url = 'https://fcm.googleapis.com/v1/projects/' . $projectName . '/messages:send';
-
-    //     $stringifiedData = [];
-    //     if ($data) {
-    //         foreach ($data as $key => $value) {
-    //             $stringifiedData[$key] = (string)$value; // Casting to string
-    //         }
-    //     }
-
-    //     $payload = [
-    //         'message' => [
-    //             'token' => $token,
-    //             'notification' => [
-    //                 'title' => $title,
-    //                 'body' => $body,
-    //             ],
-    //         ]
-    //     ];
-
-    //     if (count($stringifiedData) > 0) {
-    //         $payload['message']['data'] = $stringifiedData;
-    //     }
-
-    //     try {
-    //         $response = $client->post($url, [
-    //             'headers' => [
-    //                 'Authorization' => 'Bearer ' . $this->getAccessToken(),
-    //                 'Content-Type' => 'application/json',
-    //             ],
-    //             'json' => $payload,  // Mengirimkan payload sebagai JSON
-    //         ]);
-
-    //         // dd($response->getBody());
-    //         return $response->getBody();
-    //     } catch (\GuzzleHttp\Exception\RequestException $e) {
-    //         $statusCode = $e->getResponse()->getStatusCode();
-    //         $errorMessage = $e->getResponse()->getBody()->getContents(); // Mendapatkan pesan error
-    //         if (strpos($errorMessage, 'The registration token is not a valid FCM registration token') != false) {
-    //             // Logika jika token tidak valid
-    //             $this->handleInvalidTokens($token);
-    //         }
-
-    //         // // Tangani error di sini, misalnya hapus token invalid dari database
-    //         // if (in_array($statusCode, [400, 401, 403, 404])) {
-    //         //     $this->handleInvalidTokens($tokens);
-    //         // }
-
-    //         // throw $e; // Meneruskan exception
-    //         return response()->json(['error' => $e], $statusCode);
-    //     }
-    // }
+        return $this->sendNotification($tokens, $title, $body, $data);
+    }
 
     public function sendNotification($tokens, $title, $body, $data = null)
     {
@@ -91,7 +35,7 @@ class NotificationController extends Controller
         $client = new \GuzzleHttp\Client();
         $url = 'https://fcm.googleapis.com/v1/projects/' . $projectName . '/messages:send';
         $responses = [];
-
+        
         if (!is_array($tokens)) {
             $tokens = [$tokens];
         }
@@ -132,9 +76,10 @@ class NotificationController extends Controller
                 $responses[] = json_decode($response->getBody()->getContents(), true);
                 // return $response->getBody();
             } catch (\GuzzleHttp\Exception\RequestException $e) {
-                // $statusCode = $e->getResponse()->getStatusCode();
-                $errorMessage = $e->getResponse()->getBody()->getContents(); // Mendapatkan pesan error
-                // dd([$errorMessage, $token]);
+                $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
+                $errorMessage = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : $e->getMessage();
+                // dd([$statusCode, $errorMessage, $token]);
+                
                 if (strpos($errorMessage, 'The registration token is not a valid FCM registration token') != false) {
                     // Logika jika token tidak valid
                     $this->handleInvalidTokens($token);
@@ -147,13 +92,14 @@ class NotificationController extends Controller
 
                 // throw $e; // Meneruskan exception
                 $responses[] = [
+                    'status_code' => $statusCode,
                     'error' => $errorMessage,
                     'token' => (string)$token
                 ];
                 // return response()->json(['error' => $e], $statusCode);
             }
         }
-
+        
         return $responses;  // Return semua hasil respons dari setiap token
     }
 

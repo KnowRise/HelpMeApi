@@ -106,4 +106,4 @@ Route::prefix('v1')->group(function () {
     Route::post('/notification', [TransactionController::class, 'notification']);
 });
 
-// Route::post('/notip', [NotificationController::class, 'notip']);
+Route::post('/notip', [NotificationController::class, 'notip']);

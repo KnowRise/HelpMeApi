@@ -76,7 +76,7 @@ class OrderController extends Controller
             $query->where('mitra_helper.helper_id', $problem->helper_id); // Menambahkan alias tabel
         })->with('owner.fcmTokens')->get();
         $tokens = $userMitra->flatMap(function ($mitra) {
-            return $mitra->owner->fcmTokens->pluck('fcm_token')->toArray();
+            return $mitra->owner->fcmTokens()->pluck('fcm_token');
         });
 
         $responseOrder = [
@@ -93,7 +93,7 @@ class OrderController extends Controller
 
         if (!$tokens->isEmpty()) {
             $notificationController = new NotificationController();
-            $notificationController->sendNotification($tokens, 'New Order', 'Ini ada Order Baru nich', $responseOrder);
+            $notificationController->sendNotification($tokens->toArray(), 'New Order', 'Ini ada Order Baru nich', $responseOrder);
         }
 
         return response()->json([
