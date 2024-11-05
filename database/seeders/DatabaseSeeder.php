@@ -28,34 +28,17 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'test@example.com',
         // ]);
 
-        // $date = Carbon::now();
-        // $year = $date->format('y');
-        // $month = $date->format('m');
-        // $day = $date->format('d');
-        // $identifier = 'ADM' . $year  . $month . $day . '0001';
-        // User::create([
-        //     'full_name' => env('ADMIN_NAME'),
-        //     'username' => env('ADMIN_USERNAME'),
-        //     'phone_number' => env('ADMIN_PHONE_NUMBER'),
-        //     'password' => bcrypt(env('ADMIN_PASSWORD')),
-        //     'image_profile' => 'profiles/default.jpeg',
-        //     'identifier' => $identifier,
-        //     'is_active' => true,
-        //     'phone_number_verified_at' => $date,
-        //     'role' => 'admin'
-        // ]);
-
         $date = Carbon::now();
         $year = $date->format('y');
         $month = $date->format('m');
         $day = $date->format('d');
         $identifier = 'ADM' . $year  . $month . $day . '0001';
         User::create([
-            'full_name' => 'Admin',
-            'username' => 'admin',
-            'phone_number' => '08881708331',
-            'password' => bcrypt('secret'),
-            'image_profile' => 'profiles/default.jpeg',
+            'full_name' => env('ADMIN_NAME'),
+            'username' => env('ADMIN_USERNAME'),
+            'phone_number' => env('ADMIN_PHONE_NUMBER'),
+            'password' => bcrypt(env('ADMIN_PASSWORD')),
+            'image_profile' => 'images/profiles/default.jpeg',
             'identifier' => $identifier,
             'is_active' => true,
             'phone_number_verified_at' => $date,
