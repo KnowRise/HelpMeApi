@@ -117,7 +117,6 @@ class ChatController extends Controller
         $notification = new NotificationController();
         $receiverUser = $user->role == 'client' ? $chat->userAsMitra : $chat->userAsClient;
         $notification->sendNotification($receiverUser->fcmTokens()->pluck('fcm_token')->toArray(), 'chat', 'new message', $messageData);
-        // dd($response);
 
         return response()->json([
             'message' => 'Pesan berhasil dikirim',

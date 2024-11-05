@@ -94,7 +94,7 @@ class AdminController extends Controller
 
     public function VerifyMitra($id)
     {
-        $mitra = Mitra::find($id);
+        $mitra = Mitra::with('owner')->find($id);
 
         if ($mitra) {
             if ($mitra->is_verified) {
@@ -103,6 +103,9 @@ class AdminController extends Controller
 
             $mitra->is_verified = !$mitra->is_verified;
             $mitra->save();
+
+            $notification = new NotificationController();
+            $notification->sendNotification($mitra->owner->fcmTokens()->pluck('fcm_token')->toArray(), 'status mitra', 'mitra anda telah terverifikasi');
 
             return response()->json([
                'message' => 'Status verifikasi mitra berhasil diubah'
