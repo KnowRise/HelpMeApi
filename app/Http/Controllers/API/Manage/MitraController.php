@@ -89,7 +89,7 @@ class MitraController extends Controller
         if (!$mitra) {
             return response()->json([
                 'message' => 'Mitra not found',
-            ], 404);
+            ], 400);
         }
 
         if ($mitra->owner_identifier != $user->identifier) {
@@ -142,7 +142,7 @@ class MitraController extends Controller
 
     //     return response()->json([
     //         'message' => 'Data not found'
-    //     ], 404);
+    //     ], 400);
     // }
 
     public function mitraList(Request $request, $id = null)
@@ -150,7 +150,7 @@ class MitraController extends Controller
         if ($id != null) {
             $mitra = Mitra::find($id);
             if(!$mitra) {
-                return response()->json(['message' => 'mitra not found'], 404);
+                return response()->json(['message' => 'mitra not found'], 400);
             }
         }
 

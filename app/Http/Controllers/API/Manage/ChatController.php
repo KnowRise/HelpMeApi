@@ -72,7 +72,7 @@ class ChatController extends Controller
         }
 
         if (!$chat) {
-            return response()->json(['message' => 'chat not found'], 404);
+            return response()->json(['message' => 'chat not found'], 400);
         }
 
         if ($user->role == 'client') {
@@ -130,7 +130,7 @@ class ChatController extends Controller
         $user = $request->user();
 
         if (!$chat) {
-            return response()->json(['message' => 'Chat not found'], 404);
+            return response()->json(['message' => 'Chat not found'], 400);
         }
 
         $order = Order::find($chat->order_id);

@@ -86,7 +86,7 @@ class NotificationController extends Controller
                 }
 
                 // // Tangani error di sini, misalnya hapus token invalid dari database
-                // if (in_array($statusCode, [400, 401, 403, 404])) {
+                // if (in_array($statusCode, [404, 401, 403, 400])) {
                 //     $this->handleInvalidTokens($tokens);
                 // }
 

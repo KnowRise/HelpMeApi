@@ -42,7 +42,7 @@ class TransactionController extends Controller
         $order = Order::find($request->order_id);
 
         if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
+            return response()->json(['message' => 'Order not found'], 400);
         }
 
         if ($order->status != 'booked') {
@@ -155,7 +155,7 @@ class TransactionController extends Controller
         $mitra = Mitra::find($order->acceptedOffer->mitra_id);
 
         if (!$transaction) {
-            return response()->json(['message' => 'Transaction not found'], 404);
+            return response()->json(['message' => 'Transaction not found'], 400);
         }
 
         $user = $request->user();
@@ -239,7 +239,7 @@ class TransactionController extends Controller
                 ]);
             }
 
-            return response()->json(['message' => 'Transaction not found'], 404);
+            return response()->json(['message' => 'Transaction not found'], 400);
         }
 
         if ($user->role == 'user') {
@@ -266,7 +266,7 @@ class TransactionController extends Controller
             );
         }
 
-        return response()->json(['message' => 'No transaction found'], 404);
+        return response()->json(['message' => 'No transaction found'], 400);
     }
 
     public function getWithdraw(Request $request)

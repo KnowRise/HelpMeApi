@@ -89,7 +89,7 @@ class AdminController extends Controller
 
         return response()->json([
             'message' => 'Data user not found'
-        ], 404);
+        ], 400);
     }
 
     public function VerifyMitra($id)
@@ -114,7 +114,7 @@ class AdminController extends Controller
 
         return response()->json([
            'message' => 'Mitra not found'
-        ], 404);
+        ], 400);
     }
 
     public function getUsers(Request $request)
@@ -129,7 +129,7 @@ class AdminController extends Controller
         // Filter by role
         if ($roleQuery) {
             if ($roleQuery == 'admin') {
-                return response()->json(['message' => 'Data user not found'], 404);
+                return response()->json(['message' => 'Data user not found'], 400);
             }
             $query->where('role', $roleQuery);
         }
@@ -153,7 +153,7 @@ class AdminController extends Controller
         // If only users are requested
         if (!$statsQuery) {
             if ($users->isEmpty()) {
-                return response()->json(['message' => 'Data user not found'], 404);
+                return response()->json(['message' => 'Data user not found'], 400);
             }
             return response()->json($users, 200);
         }

@@ -116,7 +116,7 @@ class OrderController extends Controller
         $order = Order::find($orderId);
 
         if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
+            return response()->json(['message' => 'Order not found'], 400);
         }
 
         $mitra = Mitra::where('owner_identifier', $request->user()->identifier)->first();
@@ -181,7 +181,7 @@ class OrderController extends Controller
         if (!$order) {
             return response()->json([
                 'message' => 'Order not found'
-            ], 404);
+            ], 400);
         }
 
         $user = $request->user();
@@ -305,7 +305,7 @@ class OrderController extends Controller
             if (!$mitra) {
                 return response()->json([
                     'message' => "You are Mitra, but you doesn't have Mitra yet"
-                ], 404);
+                ], 400);
             }
 
             $query->whereHas('offers', function ($q) use ($mitra) {
@@ -318,7 +318,7 @@ class OrderController extends Controller
             $order = Order::find($id);
 
             if (!$order) {
-                return response()->json(['message' => 'order not found'], 404);
+                return response()->json(['message' => 'order not found'], 400);
             }
 
             if ($user->role == 'client') {
@@ -541,7 +541,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         if (!$order) {
-            return response()->json(['error' => 'Order not found'], 404);
+            return response()->json(['error' => 'Order not found'], 400);
         }
 
         $mitra = Mitra::find($order->acceptedOffer->mitra_id);

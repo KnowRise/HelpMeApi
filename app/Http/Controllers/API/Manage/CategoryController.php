@@ -36,7 +36,7 @@ class CategoryController extends Controller
         $category = Category::find($id);
 
         if (!$category) {
-            return response()->json(['message' => 'Category not found'], 404);
+            return response()->json(['message' => 'Category not found'], 400);
         }
 
         $category->delete();
@@ -79,7 +79,7 @@ class CategoryController extends Controller
         $helper = Helper::find($id);
 
         if (!$helper) {
-            return response()->json(['message' => 'helper not found'], 404);
+            return response()->json(['message' => 'helper not found'], 400);
         }
 
         $helper->delete();
@@ -101,7 +101,7 @@ class CategoryController extends Controller
 
         $helper = Helper::find($request->helper_id);
         if (!$helper) {
-            return response()->json(['message' => 'helper not found'], 404);
+            return response()->json(['message' => 'helper not found'], 400);
         }
 
         $problem = new Problem();
@@ -119,7 +119,7 @@ class CategoryController extends Controller
         $problem = Problem::find($id);
 
         if (!$problem) {
-            return response()->json(['message' => 'problem not found'], 404);
+            return response()->json(['message' => 'problem not found'], 400);
         }
 
         $problem->delete();
@@ -173,7 +173,7 @@ class CategoryController extends Controller
         })->get();
 
         if ($problems->isEmpty()) {
-            return response()->json(['message' => 'No problems found for this category'], 404);
+            return response()->json(['message' => 'No problems found for this category'], 400);
         }
 
         return response()->json($problems, 200);
