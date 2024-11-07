@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->integer('transport_cost');
             $table->integer('markup_cost');
-            $table->integer('platform_fee');
+            // $table->integer('platform_fee');
             $table->bigInteger('total_price');
             $table->dateTime('transaction_time');
             $table->string('invoice');

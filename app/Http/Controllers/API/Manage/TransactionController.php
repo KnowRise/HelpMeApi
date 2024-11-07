@@ -61,13 +61,13 @@ class TransactionController extends Controller
 
         $invoice = 'HELPME!-' . Str::random(16);
         $transportCost = $order->acceptedOffer->transport_cost;
-        $platformFee = $order->acceptedOffer->platform_fee;
+        // $platformFee = $order->acceptedOffer->platform_fee;
         $markupCost = $order->acceptedOffer->markup_cost;
         $totalPrice = $order->acceptedOffer->total_price;
 
         $transaction = new Transaction();
         $transaction->transport_cost = $transportCost;
-        $transaction->platform_fee = $platformFee;
+        // $transaction->platform_fee = $platformFee;
         $transaction->markup_cost = $markupCost;
         $transaction->total_price = $totalPrice;
         $transaction->transaction_time = now();
@@ -151,6 +151,8 @@ class TransactionController extends Controller
         }
 
         $transaction = Transaction::find($request->transaction_id);
+        
+        $transactionStatus = MidtransTransaction::status($transaction->invoice);
         
         $order = Order::find($transaction->order_id);
         $mitra = Mitra::find($order->acceptedOffer->mitra_id);
