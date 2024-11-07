@@ -151,12 +151,9 @@ class TransactionController extends Controller
         }
 
         $transaction = Transaction::find($request->transaction_id);
+        
         $order = Order::find($transaction->order_id);
         $mitra = Mitra::find($order->acceptedOffer->mitra_id);
-
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaction not found'], 400);
-        }
 
         $user = $request->user();
         if ($transaction->user_id != $user->id) {
@@ -183,7 +180,7 @@ class TransactionController extends Controller
             $mitra->save();
 
             return response()->json([
-                'messsage' => 'Refund Successfully',
+                'message' => 'Refund Successfully',
                 'data' => $refund,
             ]);
         } catch (\Exception $e) {

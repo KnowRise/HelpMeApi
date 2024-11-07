@@ -194,6 +194,7 @@ class AdminController extends Controller
                 // Get monthly stats
                 $statsQuery = User::selectRaw('COUNT(*) as count, MONTH(created_at) as month')
                     ->whereYear('created_at', $year)
+                    ->where('role', '!=', 'admin')
                     ->groupBy('month')
                     ->get();
 

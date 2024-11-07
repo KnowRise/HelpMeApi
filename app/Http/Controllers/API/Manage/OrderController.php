@@ -137,16 +137,17 @@ class OrderController extends Controller
         }
 
         $transportCost = $request->price;
-        $platformFee = $transportCost * 0.3;
-        $markupCost = 5000;
-        $totalPrice = $transportCost + $platformFee + $markupCost;
+        // $platformFee = $transportCost * 0.3;
+        $markupCost = 4000;
+        // $totalPrice = $transportCost + $platformFee + $markupCost;
+        $totalPrice = $transportCost + $markupCost;
 
         // Buat penawaran baru
         $newOffer = new Offer();
         $newOffer->order_id = $order->id;
         $newOffer->mitra_id = $mitra->id;
         $newOffer->transport_cost = $transportCost;
-        $newOffer->platform_fee = $platformFee;
+        // $newOffer->platform_fee = $platformFee;
         $newOffer->markup_cost = $markupCost;
         $newOffer->total_price = $totalPrice;
         $newOffer->estimated_time = $request->estimated_time;
@@ -254,7 +255,7 @@ class OrderController extends Controller
         $order->status = 'booked';
         $order->save();
 
-        $numberFormatted = number_format($order->acceptedOffer->price, 0, ',', '.');
+        $numberFormatted = number_format($order->acceptedOffer->total_price, 0, ',', '.');
         $mitraTerpilih = $order->acceptedOffer->mitra;
         $userMitra = User::where('identifier', $mitraTerpilih->owner_identifier)->first();
         $offerList = Offer::where('order_id', $order->id)->where('id', '!=', $offer->id)->with('mitra.owner')->get();
