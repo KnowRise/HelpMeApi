@@ -197,7 +197,7 @@ class AdminController extends Controller
                     ->where('role', '!=', 'admin')
                     ->groupBy('month')
                     ->get();
-
+                    
                 // Initialize an array for months with counts set to 0
                 $months = [
                     'January',
@@ -224,7 +224,7 @@ class AdminController extends Controller
                 foreach ($statsQuery as $item) {
                     $result[$item->month - 1]['count'] = $item->count;
                 }
-
+                
                 return response()->json($result, 200);
             } else if ($granularity === 'yearly') {
                 $startYear = $request->start_year;
@@ -233,6 +233,7 @@ class AdminController extends Controller
                 // Get yearly stats
                 $statsQuery = User::selectRaw('COUNT(*) as count, YEAR(created_at) as year')
                     ->whereBetween(DB::raw('YEAR(created_at)'), [$startYear, $endYear])
+                    ->where('role', '!=', 'admin')
                     ->groupBy('year')
                     ->get();
 

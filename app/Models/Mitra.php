@@ -8,6 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 class Mitra extends Model
 {
     use HasFactory;
+    protected $casts = [
+        'latitude' => 'decimal:6', // atau 'decimal:6' untuk presisi tertentu
+        'longitude' => 'decimal:6',
+    ];
+    
+       public function getLatitudeAttribute($value)
+    {
+        return (float) $value;
+    }
+
+    // Accessor untuk longitude
+    public function getLongitudeAttribute($value)
+    {
+        return (float) $value;
+    }
 
     public function owner()
     {

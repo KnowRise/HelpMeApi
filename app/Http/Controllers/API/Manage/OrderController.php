@@ -73,7 +73,7 @@ class OrderController extends Controller
         $attachments = OrderAttachment::where('order_id', $order->id)->get();
 
         $userMitra = Mitra::whereHas('helpers', function ($query) use ($problem) {
-            $query->where('mitra_helper.helper_id', $problem->helper_id); // Menambahkan alias tabel
+            $query->where('mitra_helper.helper_id', $problem->helper_id)->where('is_verified', true); // Menambahkan alias tabel
         })->with('owner.fcmTokens')->get();
         $tokens = $userMitra->flatMap(function ($mitra) {
             return $mitra->owner->fcmTokens()->pluck('fcm_token');

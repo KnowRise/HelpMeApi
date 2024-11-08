@@ -147,24 +147,84 @@ class MitraController extends Controller
 
     public function mitraList(Request $request, $id = null)
     {
-        if ($id != null) {
-            $mitra = Mitra::find($id);
-            if(!$mitra) {
+        $user = $request->user();
+        if ($user->role == 'mitra') {
+            $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
+        
+            if (!$mitra) {
                 return response()->json(['message' => 'mitra not found'], 400);
             }
-        }
-
-        $categoryQuery = $request->query('category');
-        if ($categoryQuery) {
-
-            $category = Category::where('name', $categoryQuery)->first();
-            if (!$category) {
+        
+            $mitra->load(['helpers' => function ($query) {
+                $query->select('helpers.id as helper_id', 'helpers.name');
+            }]);
+        
+            return response()->json([
+                'id' => $mitra->id,
+                'name' => $mitra->name,
+                'latitude' => $mitra->latitude,
+                'longitude' => $mitra->longitude,
+                'saldo' => $mitra->saldo,
+                'nomor_rekening' => $mitra->nomor_rekening,
+                // 'owner_identifier' => $mitra->owner_identifier,
+                'category' => $mitra->category->name,
+                'is_verified' => $mitra->is_verified,
+                'helpers' => $mitra->helpers,
+            ]);
+        } else if ($user->role == 'admin') {
+            $categoryQuery = $request->query('category');
+            
+            if ($id != null) {
+                $mitra = Mitra::find($id);
+            
+                if (!$mitra) {
+                    return response()->json(['message' => 'mitra not found'], 400);
+                }
+            
+                $mitra->load(['helpers' => function ($query) {
+                    $query->select('helpers.id as helper_id', 'helpers.name');
+                }]);
+            
                 return response()->json([
-                    'message' => 'invalid category'
-                ], 400);
+                    'id' => $mitra->id,
+                    'name' => $mitra->name,
+                    'latitude' => $mitra->latitude,
+                    'longitude' => $mitra->longitude,
+                    'saldo' => $mitra->saldo,
+                    'nomor_rekening' => $mitra->nomor_rekening,
+                    // 'owner_identifier' => $mitra->owner_identifier,
+                    'category_id' => $mitra->category_id,
+                    'is_verified' => $mitra->is_verified,
+                    'helpers' => $mitra->helpers,
+                ]);
             }
-
-            $mitras = Mitra::where('category_id', $category->id)->get();
+            
+            if ($categoryQuery) {
+    
+                $category = Category::where('name', $categoryQuery)->first();
+                if (!$category) {
+                    return response()->json([
+                        'message' => 'invalid category'
+                    ], 400);
+                }
+    
+                $mitras = Mitra::where('category_id', $category->id)->get();
+                return response()->json(
+                    $mitras->map(function ($mitra) {
+                        return [
+                            'id' => $mitra->id,
+                            'owner_identifier' => $mitra->owner_identifier,
+                            'name' => $mitra->name,
+                            'saldo' => $mitra->saldo,
+                            'latitude' => $mitra->latitude,
+                            'longitude' => $mitra->longitude,
+                            'category' => $mitra->category->name,
+                        ];
+                    }
+                ), 200);
+            }
+    
+            $mitras = Mitra::all()->makeHidden(['created_at', 'updated_at']);
             return response()->json(
                 $mitras->map(function ($mitra) {
                     return [
@@ -176,21 +236,10 @@ class MitraController extends Controller
                         'longitude' => $mitra->longitude,
                         'category' => $mitra->category->name,
                     ];
-                }), 200);
+                }
+            ), 200);
+        } else {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
-
-        $mitras = Mitra::all()->makeHidden(['created_at', 'updated_at']);
-        return response()->json(
-            $mitras->map(function ($mitra) {
-                return [
-                    'id' => $mitra->id,
-                    'owner_identifier' => $mitra->owner_identifier,
-                    'name' => $mitra->name,
-                    'saldo' => $mitra->saldo,
-                    'latitude' => $mitra->latitude,
-                    'longitude' => $mitra->longitude,
-                    'category' => $mitra->category->name,
-                ];
-            }), 200);
     }
 }
