@@ -90,7 +90,7 @@ class OrderController extends Controller
                 return asset($attachment->image_path);
             })
         ];
-        
+
         if (!$tokens->isEmpty()) {
             $notificationController = new NotificationController();
             $notificationController->sendNotification($tokens->toArray(), 'New Order', 'Ini ada Order Baru nich', $responseOrder);
@@ -305,12 +305,15 @@ class OrderController extends Controller
 
             if (!$mitra) {
                 return response()->json([
-                    'message' => "You are Mitra, but you doesn't have Mitra yet"
+                    'message' => "You are Mitra, but you don't have a Mitra yet"
                 ], 400);
             }
 
-            $query->whereHas('offers', function ($q) use ($mitra) {
-                $q->where('mitra_id', $mitra->id);
+            // Ambil semua helper_id yang berhubungan dengan mitra
+            $helperIds = $mitra->helpers()->pluck('id')->toArray();
+
+            $query->whereHas('problem', function ($q) use ($helperIds) {
+                $q->whereIn('helper_id', $helperIds);
             });
         }
 
@@ -407,8 +410,8 @@ class OrderController extends Controller
                 case 'daily':
                     $startDate = $request->start_date;
                     $endDate = $request->end_date;
-                    
-                    if (!start_date || !end_date) {
+
+                    if (!$startDate || !$endDate) {
                         return response()->json(['message' => 'Start Date and End Date is required']);
                     }
 
@@ -441,7 +444,7 @@ class OrderController extends Controller
 
                 case 'monthly':
                     $year = $request->year;
-                    
+
                     if (!$year) {
                         return response()->json(['message' => 'Year id required']);
                     }
@@ -482,7 +485,7 @@ class OrderController extends Controller
                 case 'yearly':
                     $startYear = $request->start_year;
                     $endYear = $request->end_year;
-                    
+
                     if (!$startYear || !$endYear) {
                         return response()->json(['message' => 'Start year and End year is Required']);
                     }
