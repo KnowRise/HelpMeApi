@@ -66,7 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [TransactionController::class, 'storeWithdraw'])->middleware(['is.mitra']);
         });
         Route::get('/', [MitraController::class, 'mitraList']);
-        Route::post('/{id?}/status', [AdminController::class, 'VerifyMitra'])->middleware(['is.admin']);
+        Route::post('/{id}/status', [AdminController::class, 'VerifyMitra'])->middleware(['is.admin']);
         Route::middleware(['is.mitra'])->group(function () {
             Route::post('/', [MitraController::class, 'storeMitra']);
             Route::post('/{id}', [MitraController::class, 'updateMitra']);

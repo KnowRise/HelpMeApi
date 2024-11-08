@@ -308,7 +308,7 @@ class AuthController extends Controller
         Cache::put('password_reset_token_' . $phoneNumber, $token, 3000);
 
         // Buat URL untuk reset password
-        $url = 'https://fb61c4ace7a0573d2d1b4a511b4247a2.serveo.net/password-reset/' . $token . '?phone_number=' . $phoneNumber;
+        $url = env('FRONTEND_URL') . 'password-reset/' . $token . '?phone_number=' . $phoneNumber;
 
         // Kirim SMS dengan link reset password
         $response = Http::withHeaders([

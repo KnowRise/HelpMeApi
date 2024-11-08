@@ -62,7 +62,7 @@ class NotificationController extends Controller
             if (count($stringifiedData) > 0) {
                 $payload['message']['data'] = $stringifiedData;
             }
-
+            
             try {
                 $response = $client->post($url, [
                     'headers' => [
@@ -78,19 +78,12 @@ class NotificationController extends Controller
             } catch (\GuzzleHttp\Exception\RequestException $e) {
                 $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
                 $errorMessage = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : $e->getMessage();
-                // dd([$statusCode, $errorMessage, $token]);
                 
                 if (strpos($errorMessage, 'The registration token is not a valid FCM registration token') != false) {
                     // Logika jika token tidak valid
                     $this->handleInvalidTokens($token);
                 }
 
-                // // Tangani error di sini, misalnya hapus token invalid dari database
-                // if (in_array($statusCode, [404, 401, 403, 400])) {
-                //     $this->handleInvalidTokens($tokens);
-                // }
-
-                // throw $e; // Meneruskan exception
                 $responses[] = [
                     'status_code' => $statusCode,
                     'error' => $errorMessage,

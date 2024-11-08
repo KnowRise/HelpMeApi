@@ -90,7 +90,7 @@ class OrderController extends Controller
                 return asset($attachment->image_path);
             })
         ];
-
+        
         if (!$tokens->isEmpty()) {
             $notificationController = new NotificationController();
             $notificationController->sendNotification($tokens->toArray(), 'New Order', 'Ini ada Order Baru nich', $responseOrder);
@@ -378,7 +378,10 @@ class OrderController extends Controller
         if ($statsQuery) {
             switch ($statsQuery) {
                 case 'hourly':
-                    $date = $request->query('date');
+                    $date = $request->date;
+                    if (!$date) {
+                        return response()->json(['message' => 'Date is required']);
+                    }
 
                     // Validasi date
                     if (!$date || !Carbon::createFromFormat('Y-m-d', $date)) {
@@ -402,8 +405,12 @@ class OrderController extends Controller
                     return response()->json($result, 200);
 
                 case 'daily':
-                    $startDate = $request->query('start_date');
-                    $endDate = $request->query('end_date');
+                    $startDate = $request->start_date;
+                    $endDate = $request->end_date;
+                    
+                    if (!start_date || !end_date) {
+                        return response()->json(['message' => 'Start Date and End Date is required']);
+                    }
 
                     // Validasi start_date dan end_date
                     if (!$startDate || !$endDate || !Carbon::createFromFormat('Y-m-d', $startDate) || !Carbon::createFromFormat('Y-m-d', $endDate)) {
@@ -433,7 +440,11 @@ class OrderController extends Controller
                     return response()->json($dateRange, 200);
 
                 case 'monthly':
-                    $year = $request->query('year');
+                    $year = $request->year;
+                    
+                    if (!$year) {
+                        return response()->json(['message' => 'Year id required']);
+                    }
 
                     // Validasi year
                     if (!$year || !is_numeric($year) || $year < 2000 || $year > date('Y')) {
@@ -469,8 +480,12 @@ class OrderController extends Controller
                     return response()->json(array_values($result), 200);
 
                 case 'yearly':
-                    $startYear = $request->query('start_year');
-                    $endYear = $request->query('end_year');
+                    $startYear = $request->start_year;
+                    $endYear = $request->end_year;
+                    
+                    if (!$startYear || !$endYear) {
+                        return response()->json(['message' => 'Start year and End year is Required']);
+                    }
 
                     // Validasi start_year dan end_year
                     if (!$startYear || !$endYear || !is_numeric($startYear) || !is_numeric($endYear)) {

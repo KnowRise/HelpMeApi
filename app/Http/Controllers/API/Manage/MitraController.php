@@ -80,12 +80,6 @@ class MitraController extends Controller
         $mitra = Mitra::find($id);
         $user = $request->user();
 
-        if ($user->phone_number_verified_at == null) {
-            return response()->json([
-                'message' => "You Phone Number Isn't Verify yet"
-            ], 403);
-        }
-
         if (!$mitra) {
             return response()->json([
                 'message' => 'Mitra not found',
