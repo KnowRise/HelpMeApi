@@ -32,7 +32,7 @@ class MitraController extends Controller
             'helper_ids.*' => ['integer', 'exists:helpers,id'], // Validate each helper_id
             'nomor_rekening' => ['required', 'numeric', 'unique:mitras,nomor_rekening']
         ]);
-
+        
         if ($validator->fails()) {
             return response()->json([
                 'message' => $validator->errors()
@@ -68,7 +68,7 @@ class MitraController extends Controller
 
         // Attach helper_ids to mitra using the pivot table
         $mitra->helpers()->attach($request->helper_ids);
-
+        
         return response()->json([
             'message' => 'Successfully created',
             'mitra' => $mitra->load('helpers'), // Load helpers relation for response
@@ -158,7 +158,7 @@ class MitraController extends Controller
             $mitra->load(['helpers' => function ($query) {
                 $query->select('helpers.id as helper_id', 'helpers.name');
             }]);
-        
+            
             return response()->json([
                 'id' => $mitra->id,
                 'name' => $mitra->name,

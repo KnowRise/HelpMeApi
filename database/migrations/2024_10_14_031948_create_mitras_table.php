@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('mitras', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->decimal('latitude');
-            $table->decimal('longitude');
+            $table->decimal('latitude', 18, 15);
+            $table->decimal('longitude', 18, 15);
             $table->bigInteger('saldo')->default(0);
             $table->string('nomor_rekening')->unique();
             $table->string('owner_identifier');
