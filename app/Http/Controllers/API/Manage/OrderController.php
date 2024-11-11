@@ -310,7 +310,7 @@ class OrderController extends Controller
             }
 
             // Ambil semua helper_id yang berhubungan dengan mitra
-            $helperIds = $mitra->helpers()->pluck('id')->toArray();
+            $helperIds = $mitra->helpers()->pluck('helpers.id')->toArray();
 
             $query->whereHas('problem', function ($q) use ($helperIds) {
                 $q->whereIn('helper_id', $helperIds);
@@ -370,6 +370,10 @@ class OrderController extends Controller
         }
 
         if ($statusQuery) {
+            if ($user->role == 'mitra') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            
             if ($statusQuery == 'complete') {
                 $query->whereIn('status', ['complete', 'rated']);
             } else {
@@ -594,5 +598,27 @@ class OrderController extends Controller
         $order->save();
 
         return response()->json(['message' => 'Status updated successfully']);
+    }
+    
+    public function orderHistoryForMitra(Request $request)
+    {
+        $user = $request->user();
+        $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
+        
+        if (!$mitra) {
+            return response()->json(['message' => 'Mitra not found'], 400);
+        }
+        
+        $offerIds = Offer::where('mitra_id', $mitra->id)->pluck('id')->toArray();
+
+        $orders = Order::whereIn('offer_id', $offerIds)
+            ->whereIn('status', ['complete', 'rated'])
+            ->get();
+        
+        if ($orders->isEmpty()) {
+            return response()->json(['message' => 'No order found']);
+        }
+        
+        return response()->json($orders);
     }
 }
