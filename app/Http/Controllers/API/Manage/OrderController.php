@@ -172,7 +172,7 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Offer has been sent.',
             'offer' => $offer
-        ], status: 201);
+        ], 201);
     }
 
     public function offerList(Request $request, $orderId)
@@ -424,7 +424,7 @@ class OrderController extends Controller
 
                     foreach ($period as $date) {
                         $dateString = $date->toDateString();
-                        $count = $orders->firstWhere('date', $dateString)?->count ?? 0; // Ambil count atau 0 jika tidak ada
+                        $count = $orders->firstWhere('date', $dateString)->count ?? 0; // Ambil count atau 0 jika tidak ada
                         $dateRange[] = ['period' => $dateString, 'count' => $count];
                     }
 
@@ -521,17 +521,12 @@ class OrderController extends Controller
                 $attachments = OrderAttachment::where('order_id', $order->id)->get();
                 $price = $order->offer_id != null ?  number_format($order->acceptedOffer->total_price, 0, '.', '.') : '0';
                 return [
-                    'order_id' => $order->id,
-                    'order_status' => $order->status,
+                    'id' => $order->id,
+                    'category' => $order->category->name,
+                    'problem' => $order->problem->name,
                     'latitude' => $order->latitude,
                     'longitude' => $order->longitude,
                     'description' => $order->description,
-                    'order_time' => $order->order_time,
-                    'user' => $order->user->username,
-                    'user_profile' => asset($order->user->image_profile),
-                    'price' => $price,
-                    'problem' => $order->problem->name,
-                    'is_rated' => $order->status == 'rated' ? true : false,
                     'attachment' => $attachments->map(function ($attachment) {
                         $imageUrl = asset($attachment->image_path);
                         return $imageUrl;
