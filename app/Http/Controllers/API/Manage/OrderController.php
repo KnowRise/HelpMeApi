@@ -313,7 +313,7 @@ class OrderController extends Controller
             $helperIds = $mitra->helpers()->pluck('helpers.id')->toArray();
 
             $query->whereHas('problem', function ($q) use ($helperIds) {
-                $q->whereIn('helper_id', $helperIds);
+                $q->whereIn('helper_id', $helperIds)->where('status', 'pending');
             });
         }
 
