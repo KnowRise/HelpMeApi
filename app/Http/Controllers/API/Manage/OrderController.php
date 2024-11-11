@@ -622,6 +622,7 @@ class OrderController extends Controller
         return response()->json($orders->map(function ($order) {
             $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
             return [
+                'id' => $order->id,
                 'category' => $order->category->name,
                 'problem' => $order->problem->name,
                 'latitude' => $order->latitude,
