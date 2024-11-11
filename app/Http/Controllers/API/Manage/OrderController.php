@@ -338,35 +338,19 @@ class OrderController extends Controller
                 }
             }
 
-            $attachments = OrderAttachment::where('order_id', $order->id)->get();
-            $response = [
-                'order_id' => $order->id,
-                'order_status' => $order->status,
-                'order_time' => $order->order_time,
-                'user' => $order->user->username,
-                'description' => $order->description,
-                'latitude' => $order->latitude,
-                'longitude' => $order->longitude,
-                'price' => '0',
-                'problem' => $order->problem->name,
-                'is_rated' => $order->status == 'rated' ? true : false,
-                'attachments' => $attachments->map(function ($attachment) {
-                    $imageUrl = asset($attachment->image_path);
-                    return $imageUrl;
-                }),
-            ];
-            if ($order->offer_id != null) {
-                $response['price'] = number_format($order->acceptedOffer->total_price, 0, '.', '.');
-                $response['mitra'] = $order->acceptedOffer->mitra->name;
-                $response['mitra_profile'] = asset($order->acceptedOffer->mitra->owner->image_profile);
-                $response['phone_number_mitra'] = $order->acceptedOffer->mitra->owner->phone_number;
-            } else {
-                $response['mitra'] = null;
-                $response['mitra_profile'] = null;
-                $response['phone_number_mitra'] = null;
-            }
+            $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
 
-            return response()->json($response, 200);
+            return response()->json([
+                'id' => $order->id,
+                'category' => $order->category->name,
+                'problem' => $order->problem->name,
+                'latitude' => $order->latitude,
+                'logitude' => $order->logitude,
+                'description' => $order->description,
+                'attachments' => array_map(function ($attachment) {
+                    return asset($attachment);
+                }, $attachments)
+            ], 200);
         }
 
         if ($statusQuery) {
@@ -588,11 +572,11 @@ class OrderController extends Controller
         if ($newStatusIndex != $currentStatusIndex + 1) {
             return response()->json(['error' => 'Status must be updated sequentially'], 400);
         }
-        
+
         if ($status == 'complete' && $user->role != 'client') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
+
         if ($status != 'complete' && $user->role == 'client') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -630,12 +614,16 @@ class OrderController extends Controller
         return response()->json($orders->map(function ($order) {
             $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
             return [
-                'id' => $order->id,
-                'category' => $order->category->name,
-                'problem' => $order->problem->name,
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+                'order_time' => $order->order_time,
+                'user' => $order->user->username,
+                'user_profile' => $order->user->image_profile,
+                'description' => $order->description,
                 'latitude' => $order->latitude,
                 'longitude' => $order->longitude,
-                'description' => $order->description,
+                'problem' => $order->problem->name,
+                'price' => number_format($order->acceptedOffer->total_price, 0, '.', '.'),
                 'attachments' => array_map(function ($attachment) {
                     return asset($attachment);
                 }, $attachments)
