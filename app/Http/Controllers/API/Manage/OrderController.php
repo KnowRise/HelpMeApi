@@ -373,7 +373,7 @@ class OrderController extends Controller
             if ($user->role == 'mitra') {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
-            
+
             if ($statusQuery == 'complete') {
                 $query->whereIn('status', ['complete', 'rated']);
             } else {
@@ -599,26 +599,38 @@ class OrderController extends Controller
 
         return response()->json(['message' => 'Status updated successfully']);
     }
-    
+
     public function orderHistoryForMitra(Request $request)
     {
         $user = $request->user();
         $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
-        
+
         if (!$mitra) {
             return response()->json(['message' => 'Mitra not found'], 400);
         }
-        
+
         $offerIds = Offer::where('mitra_id', $mitra->id)->pluck('id')->toArray();
 
         $orders = Order::whereIn('offer_id', $offerIds)
             ->whereIn('status', ['complete', 'rated'])
             ->get();
-        
+
         if ($orders->isEmpty()) {
             return response()->json(['message' => 'No order found']);
         }
-        
-        return response()->json($orders);
+
+        return response()->json($orders->map(function ($order) {
+            $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
+            return [
+                'category' => $order->category->name,
+                'problem' => $order->problem->name,
+                'latitude' => $order->latitude,
+                'longitude' => $order->longitude,
+                'description' => $order->description,
+                'attachments' => array_map(function ($attachment) {
+                    return asset($attachment);
+                }, $attachments)
+            ];
+        }));
     }
 }
