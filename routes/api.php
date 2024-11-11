@@ -82,7 +82,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [OrderController::class, 'storeOrder'])->middleware(['is.client']);
             Route::post('/mitra', [OrderController::class, 'selectMitra'])->middleware(['is.client']);
             // Route::get('/{id}/status', [OrderController::class, 'getStatus'])->middleware(['is.client']);
-            Route::post('/{id}/status', [OrderController::class, 'updateStatus'])->middleware(['is.mitra']);
+            Route::post('/{id}/status', [OrderController::class, 'updateStatus']);
         });
         Route::prefix('offers')->middleware(['is.user.active', 'is.number.verified'])->group(function () {
             Route::post('/{orderId}', [OrderController::class, 'offerOrder'])->middleware(['is.mitra']);

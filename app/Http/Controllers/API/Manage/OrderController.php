@@ -588,10 +588,18 @@ class OrderController extends Controller
         if ($newStatusIndex != $currentStatusIndex + 1) {
             return response()->json(['error' => 'Status must be updated sequentially'], 400);
         }
+        
+        if ($status == 'complete' && $user->role != 'client') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        if ($status != 'complete' && $user->role == 'client') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         $userOrder = User::find($order->user_id);
         $notification = new NotificationController();
-        $notification->sendNotification($userOrder->fcmTokens()->pluck('fcm_token')->toArray(), 'order', 'status updated', ['status' => $status]);
+        $notification->sendNotification($userOrder->fcmTokens()->pluck('fcm_token')->toArray(), 'order', 'status updated', ['status' => $status, 'time' => Carbon::now()]);
 
         // Update status di database
         $order->status = $status;
