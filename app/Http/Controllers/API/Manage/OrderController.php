@@ -339,18 +339,33 @@ class OrderController extends Controller
             }
 
             $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
-
-            return response()->json([
-                'id' => $order->id,
-                'category' => $order->category->name,
-                'problem' => $order->problem->name,
+            $response = [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
                 'latitude' => $order->latitude,
-                'logitude' => $order->logitude,
+                'longitude' => $order->longitude,
                 'description' => $order->description,
+                'order_time' => $order->order_time,
+                'user' => $order->user->username,
+                'user_profile' => asset($order->user->image_profile),
+                'price' => 0,
+                'mitra' => null,
+                'mitra_profile' => null,
+                'phone_number_mitra' => null,
+                'problem' => $order->problem->name,
                 'attachments' => array_map(function ($attachment) {
                     return asset($attachment);
                 }, $attachments)
-            ], 200);
+            ];
+
+            if ($order->offer_id != null) {
+                $response['price'] = $order->acceptedOffer->total_price;
+                $response['mitra'] = $order->acceptedOffer->mitra->name;
+                $response['mitra_profile'] = asset($order->acceptedOffer->mitra->owner->image_profile);
+                $response['phone_number_mitra'] = $order->acceptedOffer->mitra->owner->phone_number;
+            }
+
+            return response()->json($response, 200);
         }
 
         if ($statusQuery) {
