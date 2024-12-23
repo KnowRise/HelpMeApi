@@ -14,10 +14,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function  register(Request $request)
     {
         $requiremenns = [
             'full_name' => ['required', 'string'],
@@ -147,11 +148,11 @@ class AuthController extends Controller
                 }
             }
 
-            return response()->json(['message' => 'Your account is inactive. Please contact support.'], 403);
+            return response()->json(['message' => 'Your account is inactive. Please contact support.'], 400);
         }
 
         // Jika autentikasi gagal
-        return response()->json(['error' => 'Invalid credentials'], 401);
+        return response()->json(['error' => 'Invalid credentials'], 400);
     }
 
     public function aboutMe(Request $request)
@@ -232,7 +233,7 @@ class AuthController extends Controller
 
         $requiremens = [
             'full_name' => ['required', 'string'],
-            'username' => ['required', 'string', 'unique:users,username,' . $user->id, 'min:2'],
+            'username' => ['required', 'string', Rule::unique('users','username')->ignore($user->id), 'min:2'],
             'phone_number' => ['required', 'numeric'],
         ];
 
@@ -286,37 +287,32 @@ class AuthController extends Controller
 
     public function sendResetLink(Request $request)
     {
-        // Validasi nomor telepon
         $validator = Validator::make($request->all(), [
             'phone_number' => ['required', 'numeric', 'exists:users,phone_number'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], status: 422);
+            return response()->json(['errors' => $validator->errors()], status: 400);
         }
 
         $user = User::where('phone_number', $request->phone_number)->first();
         if ($user->phone_number_verified_at == null) {
-            return response()->json(['message' => 'Nomor telepon belum diverifikasi'], status: 422);
+            return response()->json(['message' => 'Nomor telepon belum diverifikasi'], status: 400);
         }
 
-        // Generate token reset password
         $token = Str::random(60);
 
-        // Simpan token di cache (expire setelah 5 menit)
         $phoneNumber = $request->phone_number;
         Cache::put('password_reset_token_' . $phoneNumber, $token, 3000);
 
-        // Buat URL untuk reset password
         $url = env('FRONTEND_URL') . 'password-reset/' . $token . '?phone_number=' . $phoneNumber;
 
-        // Kirim SMS dengan link reset password
         $response = Http::withHeaders([
-            'Authorization' => env('FONNTE_TOKEN'), // ganti dengan TOKEN Fonnte kamu
+            'Authorization' => env('FONNTE_TOKEN'),
         ])->post('https://api.fonnte.com/send', [
             'target' => $phoneNumber,
             'message' => 'Link Untuk Reset Password: ' . $url,
-            'countryCode' => '62', // kode negara Indonesia
+            'countryCode' => '62',
         ]);
 
         if ($response->successful()) {
@@ -328,7 +324,6 @@ class AuthController extends Controller
 
     public function reset(Request $request)
     {
-        // Validasi input
         $validator = Validator::make($request->all(), [
             'phone_number' => ['required', 'numeric', 'exists:users,phone_number'],
             'password' => ['required', 'min:8', 'confirmed'],
@@ -336,24 +331,20 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors()], 400);
         }
 
-        // Ambil token dari cache
         $phoneNumber = $request->phone_number;
         $cachedToken = Cache::get('password_reset_token_' . $phoneNumber);
 
-        // Cek apakah token sesuai
         if ($cachedToken && $cachedToken == $request->token) {
-            // Jika verifikasi berhasil, hapus token dari cache
             Cache::forget('password_reset_token_' . $phoneNumber);
 
-            // Proses reset password
             $user = User::where('phone_number', $phoneNumber)->first();
-            $user->password = bcrypt($request->password); // Hashing password baru
+            $user->password = bcrypt($request->password);
             $user->save();
 
-            Auth::logout(); // Logout pengguna setelah reset
+            Auth::logout();
 
             return response()->json(['message' => 'Password reset successful'], 200);
         } else {
@@ -363,13 +354,12 @@ class AuthController extends Controller
 
     public function sendVerificationCode(Request $request)
     {
-        // Validasi input nomor telepon
         $validator = Validator::make($request->all(), [
             'phone_number' => ['required', 'exists:users,phone_number'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors()], 400);
         }
 
         $user = User::where('phone_number', $request->phone_number)->first();
@@ -377,19 +367,17 @@ class AuthController extends Controller
             return response()->json(['message' => 'Nomor telepon sudah diverifikasi'], 400);
         }
 
-        // Generate kode verifikasi (4-6 digit angka)
         $verificationCode = rand(1000, 9999);
 
-        // Simpan kode verifikasi ke cache atau database (dengan expiry time 5 menit)
         $phoneNumber = $request->phone_number;
-        Cache::put('verification_code_' . $phoneNumber, $verificationCode, 300); // simpan 5 menit
+        Cache::put('verification_code_' . $phoneNumber, $verificationCode, 300);
 
         $response = Http::withHeaders([
-            'Authorization' => env('FONNTE_TOKEN'), // ganti dengan TOKEN Fonnte kamu
+            'Authorization' => env('FONNTE_TOKEN'),
         ])->post('https://api.fonnte.com/send', [
             'target' => $phoneNumber,
             'message' => 'Kode verifikasi kamu adalah: ' . $verificationCode,
-            'countryCode' => '62', // kode negara Indonesia
+            'countryCode' => '62',
         ]);
 
         if ($response->successful()) {
@@ -401,24 +389,20 @@ class AuthController extends Controller
 
     public function verifyCode(Request $request)
     {
-        // Validasi input nomor telepon dan kode verifikasi
         $validator = Validator::make($request->all(), [
             'phone_number' => ['required', 'exists:users,phone_number'],
             'verification_code' => ['required', 'numeric', 'digits:4'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors()], 400);
         }
 
-        // Ambil kode verifikasi yang tersimpan
         $phoneNumber = $request->phone_number;
         $cachedCode = Cache::get('verification_code_' . $phoneNumber);
         $user = User::where('phone_number', $phoneNumber)->first();
 
-        // Cek apakah kode verifikasi sesuai
         if ($cachedCode && $cachedCode == $request->verification_code) {
-            // Jika verifikasi berhasil, hapus kode dari cache
             Cache::forget('verification_code_' . $phoneNumber);
             $user->phone_number_verified_at = now();
             $user->save();

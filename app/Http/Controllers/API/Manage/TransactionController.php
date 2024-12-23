@@ -140,82 +140,6 @@ class TransactionController extends Controller
         ], 200);
     }
 
-    public function refundTransaction(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'transaction_id' => ['required', 'exists:transactions,id'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()], 400);
-        }
-
-        $transaction = Transaction::find($request->transaction_id);
-        
-        $transactionStatus = MidtransTransaction::status($transaction->invoice);
-        
-        $order = Order::find($transaction->order_id);
-        $mitra = Mitra::find($order->acceptedOffer->mitra_id);
-
-        $user = $request->user();
-        if ($transaction->user_id != $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        if ($transaction->status != 'complete') {
-            return response()->json(['message' => 'Transaction not complete'], 400);
-        }
-
-        $refundKey = 'REFUND-' . $transaction->invoice;
-
-        $params = [
-            'refund_key' => $refundKey,
-        ];
-
-        try {
-            $refund = MidtransTransaction::refund($transaction->invoice, $params);
-            $transaction->status = 'refunded';
-            $transaction->save();
-            $order->status = 'cancelled';
-            $order->save();
-            $mitra->saldo -= $transaction->transport_cost;
-            $mitra->save();
-
-            return response()->json([
-                'message' => 'Refund Successfully',
-                'data' => $refund,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 500);
-        }
-
-        // $url = 'https://api.sandbox.midtrans.com/v2/' . $transaction->invoice . '/refund';
-
-        // $response = Http::withBasicAuth(env('MIDTRANS_SERVER_KEY'), '')
-        //     ->post($url, [
-        //         'refund_key' => $refundKey,
-        //     ]);
-
-        // $responseData = $response->json();
-
-        // if ($responseData['status_code'] == '200') {
-        //     $transaction->status = 'refunded';
-        //     $transaction->save();
-        //     $order->status = 'cancelled';
-        //     $order->save();
-
-        //     return response()->json([
-        //         'message' => 'Refund successful',
-        //         'data' => $responseData,
-        //     ], 200);
-        // } else {
-        //     return response()->json([
-        //         'message' => 'Refund failed',
-        //         'data' => $responseData,
-        //     ], 500);
-        // }
-    }
-
     public function transactionList(Request $request, $id = null)
     {
         $user = $request->user();
@@ -268,98 +192,148 @@ class TransactionController extends Controller
         return response()->json(['message' => 'No transaction found'], 400);
     }
 
-    public function getWithdraw(Request $request)
-    {
-        $user = $request->user();
-        $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
-        $withdraws = WithDraw::where('mitra_id', $mitra->id)->get();
+    // public function refundTransaction(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'transaction_id' => ['required', 'exists:transactions,id'],
+    //     ]);
 
-        return response()->json([
-            'data' => $withdraws->map(function ($withdraw) {
-                return [
-                    'id' => $withdraw->id,
-                    'amount' => $withdraw->amount,
-                    'transaction_time' => $withdraw->transaction_time,
-                    'status' => $withdraw->status,
-                ];
-            }),
-        ], 200);
-    }
+    //     if ($validator->fails()) {
+    //         return response()->json(['message' => $validator->errors()], 400);
+    //     }
 
-    public function storeWithdraw(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'bank_code' => ['required', 'string'],
-            'account_number' => ['required', 'string'],
-            'amount' => ['required', 'numeric'],
-            // 'note' => ['string']
-        ]);
+    //     $transaction = Transaction::find($request->transaction_id);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
+    //     $transactionStatus = MidtransTransaction::status($transaction->invoice);
 
-        // $client = new Client();
-        // $sandboxKey = config('midtrans.server_key'); // Masukkan Sandbox Server Key dari Midtrans
-        // $auth = base64_encode($sandboxKey . ':');
+    //     $order = Order::find($transaction->order_id);
+    //     $mitra = Mitra::find($order->acceptedOffer->mitra_id);
 
-        // $bankCode = $request->bank_code;  // Pastikan dikirim melalui request
-        // $accountNumber = $request->account_number;  // Dikirim melalui request
-        // $amount = $request->amount;  // Jumlah uang yang akan ditransfer
-        // $note = $request->note ? $request->note : 'Tarik Saldo';  // Catatan untuk transaksi
+    //     $user = $request->user();
+    //     if ($transaction->user_id != $user->id) {
+    //         return response()->json(['message' => 'Unauthorized'], 401);
+    //     }
 
-        // try {
-        //     $response = $client->post('https://app.sandbox.midtrans.com/iris/api/v1/payouts', [
-        //         'headers' => [
-        //             'Authorization' => 'Basic ' . $auth,
-        //             'Content-Type' => 'application/json'
-        //         ],
-        //         'json' => [
-        //             "payouts" => [
-        //                 [
-        //                     "beneficiary_name" => "Jon Snow",
-        //                     "beneficiary_account" => $accountNumber,
-        //                     "beneficiary_bank" => $bankCode,
-        //                     "amount" => $amount,
-        //                     "notes" => $note
-        //                 ],
-        //             ],
-        //         ],
-        //     ]);
+    //     if ($transaction->status != 'complete') {
+    //         return response()->json(['message' => 'Transaction not complete'], 400);
+    //     }
 
-        //     $data = json_decode($response->getBody(), true);
+    //     $refundKey = 'REFUND-' . $transaction->invoice;
 
-        //     if ($response->getStatusCode() == 200 && isset($data['status']) && $data['status'] === 'pending') {
-        //         return response()->json($data); // Disbursement berhasil di sandbox
-        //     }
+    //     $params = [
+    //         'refund_key' => $refundKey,
+    //     ];
 
-        //     return response()->json(['error' => 'Failed to process disbursement'], 500); // Jika gagal
-        // } catch (\Exception $e) {;
-        //     return response()->json(['error' => $e->getMessage()], 500);
-        // }
+    //     try {
+    //         $refund = MidtransTransaction::refund($transaction->invoice, $params);
+    //         $transaction->status = 'refunded';
+    //         $transaction->save();
+    //         $order->status = 'cancelled';
+    //         $order->save();
+    //         $mitra->saldo -= $transaction->transport_cost;
+    //         $mitra->save();
 
-        $withDraw = new WithDraw();
-        $withDraw->amount = $request->amount;
-        $withDraw->transaction_time = now();
-        $withDraw->mitra_id = $request->user()->id;
-        $withDraw->save();
+    //         return response()->json([
+    //             'message' => 'Refund Successfully',
+    //             'data' => $refund,
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['message' => $e->getMessage()], 500);
+    //     }
+    // }
 
-        return response()->json([
-           'message' => 'Withdrawal request submitted successfully',
-            'data' => $withDraw,
-        ], 200);
-    }
+    // public function getWithdraw(Request $request)
+    // {
+    //     $user = $request->user();
+    //     $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
+    //     $withdraws = WithDraw::where('mitra_id', $mitra->id)->get();
 
-    public function approveWithdraw ($id)
-    {
-        $withDraw = WithDraw::find($id);
-        if (!$withDraw || $withDraw->status != 'pending') {
-            return response()->json(['message' => 'Invalid Withdraw'], 200);
-        }
+    //     return response()->json([
+    //         'data' => $withdraws->map(function ($withdraw) {
+    //             return [
+    //                 'id' => $withdraw->id,
+    //                 'amount' => $withdraw->amount,
+    //                 'transaction_time' => $withdraw->transaction_time,
+    //                 'status' => $withdraw->status,
+    //             ];
+    //         }),
+    //     ], 200);
+    // }
 
-        $withDraw->status = 'complete';
-        $withDraw->save();
+    // public function storeWithdraw(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'bank_code' => ['required', 'string'],
+    //         'account_number' => ['required', 'string'],
+    //         'amount' => ['required', 'numeric'],
+    //         // 'note' => ['string']
+    //     ]);
 
-        return response()->json(['message' => 'Success'], 200);
-    }
+    //     if ($validator->fails()) {
+    //         return response()->json(['error' => $validator->errors()], 400);
+    //     }
+
+    //     // $client = new Client();
+    //     // $sandboxKey = config('midtrans.server_key'); // Masukkan Sandbox Server Key dari Midtrans
+    //     // $auth = base64_encode($sandboxKey . ':');
+
+    //     // $bankCode = $request->bank_code;  // Pastikan dikirim melalui request
+    //     // $accountNumber = $request->account_number;  // Dikirim melalui request
+    //     // $amount = $request->amount;  // Jumlah uang yang akan ditransfer
+    //     // $note = $request->note ? $request->note : 'Tarik Saldo';  // Catatan untuk transaksi
+
+    //     // try {
+    //     //     $response = $client->post('https://app.sandbox.midtrans.com/iris/api/v1/payouts', [
+    //     //         'headers' => [
+    //     //             'Authorization' => 'Basic ' . $auth,
+    //     //             'Content-Type' => 'application/json'
+    //     //         ],
+    //     //         'json' => [
+    //     //             "payouts" => [
+    //     //                 [
+    //     //                     "beneficiary_name" => "Jon Snow",
+    //     //                     "beneficiary_account" => $accountNumber,
+    //     //                     "beneficiary_bank" => $bankCode,
+    //     //                     "amount" => $amount,
+    //     //                     "notes" => $note
+    //     //                 ],
+    //     //             ],
+    //     //         ],
+    //     //     ]);
+
+    //     //     $data = json_decode($response->getBody(), true);
+
+    //     //     if ($response->getStatusCode() == 200 && isset($data['status']) && $data['status'] === 'pending') {
+    //     //         return response()->json($data); // Disbursement berhasil di sandbox
+    //     //     }
+
+    //     //     return response()->json(['error' => 'Failed to process disbursement'], 500); // Jika gagal
+    //     // } catch (\Exception $e) {;
+    //     //     return response()->json(['error' => $e->getMessage()], 500);
+    //     // }
+
+    //     $withDraw = new WithDraw();
+    //     $withDraw->amount = $request->amount;
+    //     $withDraw->transaction_time = now();
+    //     $withDraw->mitra_id = $request->user()->id;
+    //     $withDraw->save();
+
+    //     return response()->json([
+    //        'message' => 'Withdrawal request submitted successfully',
+    //         'data' => $withDraw,
+    //     ], 200);
+    // }
+
+    // public function approveWithdraw ($id)
+    // {
+    //     $withDraw = WithDraw::find($id);
+    //     if (!$withDraw || $withDraw->status != 'pending') {
+    //         return response()->json(['message' => 'Invalid Withdraw'], 200);
+    //     }
+
+    //     $withDraw->status = 'complete';
+    //     $withDraw->save();
+
+    //     return response()->json(['message' => 'Success'], 200);
+    // }
 }

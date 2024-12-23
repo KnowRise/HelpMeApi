@@ -9,6 +9,11 @@ class Problem extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'name',
+        'helper_id',
+    ];
+
     public function orders()
     {
         return $this->belongsTo(Order::class);

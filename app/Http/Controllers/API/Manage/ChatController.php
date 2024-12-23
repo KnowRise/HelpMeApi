@@ -15,49 +15,33 @@ use Pusher\Pusher;
 
 class ChatController extends Controller
 {
-    public function createOrGetChat(Request $request)
+    public function createOrGetChat($id)
     {
-        $validator = Validator::make($request->all(), [
-            'order_id' => ['required', 'exists:orders,id'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()], 400);
-        }
-
-        $order = Order::find($request->order_id);
+        $order = Order::find($id);
         if ($order->status == 'cancelled' || $order->status == 'complete') {
             return response()->json(['message' => "The order is not valid"], 400);
         }
 
-        $chat = Chat::where('order_id', $order->id)->first();
-        $code_room = Str::uuid()->toString();
-
-        if (!$chat) {
-            $chat = new Chat();
-            $chat->client_id = $order->user_id;
-            $chat->mitra_id = $order->acceptedOffer->mitra->owner->id;
-            $chat->order_id = $order->id;
-            $chat->code_room = $code_room;
-            $chat->save();
-        }
-
-        // $chatId = rand
+        $chat = Chat::firstOrCreate(
+            ['order_id' => $order->id],
+            [
+                'client_id' => $order->user_id,
+                'mitra_id' => $order->acceptedOffer->mitra->owner->id,
+                'code_room' => Str::uuid()->toString(),
+            ]
+        );
 
         return response()->json($chat, 200);
     }
 
-    public function sendMessage(Request $request)
+    public function sendMessage(Request $request, $code_room)
     {
         $user = $request->user();
-        // Validasi kustom untuk memastikan hanya satu di antara message atau attachment yang bisa diisi
         $validator = Validator::make($request->all(), [
-            'code_room' => ['required', 'exists:chats,code_room'],
-            'message' => ['nullable', 'string', 'required_without:attachment'],  // Jika attachment tidak diisi, message harus ada
-            'attachment' => ['nullable', 'file', 'mimes:jpg,png,jpeg', 'max:5000', 'required_without:message'],  // Jika message tidak diisi, attachment harus ada
+            'message' => ['nullable', 'string', 'required_without:attachment'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,png,jpeg', 'max:5000', 'required_without:message'],
         ]);
 
-        // Tambahkan validasi bahwa hanya satu yang bisa diisi, message atau attachment
         $validator->after(function ($validator) use ($request) {
             if ($request->filled('message') && $request->hasFile('attachment')) {
                 $validator->errors()->add('message', 'Only one of message or attachment should be provided.');
@@ -65,7 +49,7 @@ class ChatController extends Controller
             }
         });
 
-        $chat = Chat::where('code_room', $request->code_room)->first();
+        $chat = Chat::where('code_room', $code_room)->first();
 
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()], 400);
@@ -85,23 +69,20 @@ class ChatController extends Controller
             }
         }
 
-        // Simpan pesan
         $message = new Message();
         $message->chat_id = $chat->id;
         $message->sender_id = $request->user()->id;
 
-        // Jika message diisi, simpan message dan set attachment ke null
         if ($request->filled('message')) {
             $message->message = $request->message;
             $message->attachment = null;
         }
 
-        // Jika attachment diisi, simpan attachment dan set message ke null
         if ($request->hasFile('attachment')) {
             $attachmentName = Str::uuid() . '.' . $request->attachment->getClientOriginalExtension();
             $path = $request->file('attachment')->storeAs('images/chats/' . $chat->id, $attachmentName, 'public');
             $message->attachment = $path;
-            $message->message = null;  // Set message ke null jika attachment diisi
+            $message->message = null;
         }
 
         $message->save();

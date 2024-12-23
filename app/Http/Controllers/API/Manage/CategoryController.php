@@ -12,23 +12,23 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
-    public function storeCategory(Request $request)
+    public function storeCategory(Request $request, $id = null)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string']
-        ]);
-
+        dd($request->all());
+        $validator = Validator::make($request->all(), ['name' => ['required', 'string']]);
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()], 400);
         }
-
-        $category = new Category();
-        $category->name = $request->name;
-        $category->save();
-
-        return response()->json([
-            'message' => 'Category created successfully',
-        ], 201);
+        if ($id != null) {
+            $category = Category::find($id);
+            if (!$category) {
+                return response()->json(['message' => 'Invalid Id'], 400);
+            }
+            $category->update(['name' => $request->name]);
+        } else {
+            Category::create(['name' => $request->name]);
+        }
+        return response()->json(['message' => 'Proccess successfully'], 201);
     }
 
     public function deleteCategory($id)
@@ -45,24 +45,45 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    public function storeHelper(Request $request)
+    public function storeHelper(Request $request, $id = null)
     {
+        if ($id != null) {
+            $helper = Helper::find($id);
+            if (!$helper) {
+                return response()->json(['message' => 'Invalid Id'], 400);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'name' => ['required', 'string'],
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()], 400);
+            }
+
+            $helper->update(['name' => $request->name]);
+
+            return response()->json([
+                'message' => 'Proccess successfully',
+            ], 201);
+        }
+
         $categoryQuery = $request->query('category');
-        if(!$categoryQuery) {
+        if (!$categoryQuery) {
             return response()->json(['message' => 'category is required'], 400);
         }
 
-        $category = Category::where('name', $categoryQuery)->first();
-        if(!$category) {
-            return response()->json(['message' => 'invalid category'], 400);
-        }
-
         $validator = Validator::make($request->all(), [
-            'name' => ['string', 'required'],
+            'name' => ['required', 'string'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'error', $validator->errors()], 400);
+            return response()->json(['message' => $validator->errors()], 400);
+        }
+
+        $category = Category::where('name', $categoryQuery)->first();
+        if (!$category) {
+            return response()->json(['message' => 'invalid category'], 400);
         }
 
         $helper = new Helper();
@@ -71,11 +92,12 @@ class CategoryController extends Controller
         $helper->save();
 
         return response()->json([
-            'message' => 'helper created successfully'
+            'message' => 'Proccess successfully',
         ], 201);
     }
 
-    public function deleteHelper($id) {
+    public function deleteHelper($id)
+    {
         $helper = Helper::find($id);
 
         if (!$helper) {
@@ -88,7 +110,7 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    public function storeProblem(Request $request)
+    public function storeProblem(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string'],
@@ -104,13 +126,21 @@ class CategoryController extends Controller
             return response()->json(['message' => 'helper not found'], 400);
         }
 
-        $problem = new Problem();
-        $problem->name = $request->name;
-        $problem->helper_id = $helper->id;
-        $problem->save();
+        if ($id != null) {
+            $problem = Problem::find($id);
+            if (!$problem) {
+                return response()->json(['message' => 'Invalid Id'], 400);
+            }
+            $problem->update(['name' => $request->name, 'helper_id' => $helper->id]);
+        } else {
+            $problem = new Problem();
+            $problem->name = $request->name;
+            $problem->helper_id = $helper->id;
+            $problem->save();
+        }
 
         return response()->json([
-            'message' => 'Problem created successfully',
+            'message' => 'Proccess successfully',
         ], 201);
     }
 
@@ -130,7 +160,7 @@ class CategoryController extends Controller
 
     public function categoryList()
     {
-        $categories = Category::all();
+        $categories = Category::all()->makeHidden(['created_at', 'updated_at']);
 
         return response()->json([
             'data' => $categories
@@ -149,7 +179,7 @@ class CategoryController extends Controller
             return response()->json(['message' => 'invalid category'], 400);
         }
 
-        $helpers = Helper::where('category_id', $category->id)->get();
+        $helpers = Helper::where('category_id', $category->id)->get()->makeHidden(['created_at', 'updated_at']);
 
         return response()->json(['data' => $helpers], 200);
     }
@@ -170,7 +200,7 @@ class CategoryController extends Controller
 
         $problems = Problem::whereHas('helper', function ($query) use ($categoryId) {
             $query->where('category_id', $categoryId);
-        })->get();
+        })->get()->makeHidden(['created_at', 'updated_at']);
 
         if ($problems->isEmpty()) {
             return response()->json(['message' => 'No problems found for this category'], 400);

@@ -73,7 +73,7 @@ class OrderController extends Controller
         $attachments = OrderAttachment::where('order_id', $order->id)->get();
 
         $userMitra = Mitra::whereHas('helpers', function ($query) use ($problem) {
-            $query->where('mitra_helper.helper_id', $problem->helper_id)->where('is_verified', true); // Menambahkan alias tabel
+            $query->where('mitra_helper.helper_id', $problem->helper_id)->where('is_verified', true);
         })->with('owner.fcmTokens')->get();
         $tokens = $userMitra->flatMap(function ($mitra) {
             return $mitra->owner->fcmTokens()->pluck('fcm_token');
@@ -106,7 +106,7 @@ class OrderController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'price' => ['required', 'integer'],
-            'estimated_time' => ['required', 'integer'],  // Ubah validasi untuk jam:menit
+            'estimated_time' => ['required', 'integer'],
         ]);
 
         if ($validator->fails()) {
@@ -121,7 +121,7 @@ class OrderController extends Controller
 
         $mitra = Mitra::where('owner_identifier', $request->user()->identifier)->first();
         if (!$mitra) {
-            return response()->json(['message' => 'Account Anda belum memiliki Mitra'], 403); // Tambahkan pengecekan ini
+            return response()->json(['message' => 'Account Anda belum memiliki Mitra'], 403);
         } else if (!$mitra->is_verified) {
             return response()->json(['message' => 'Mitra anda belum terverifikasi'], 403);
         }
@@ -142,7 +142,6 @@ class OrderController extends Controller
         // $totalPrice = $transportCost + $platformFee + $markupCost;
         $totalPrice = $transportCost + $markupCost;
 
-        // Buat penawaran baru
         $newOffer = new Offer();
         $newOffer->order_id = $order->id;
         $newOffer->mitra_id = $mitra->id;
@@ -193,9 +192,8 @@ class OrderController extends Controller
             ], 403);
         }
 
-        // Memuat tawaran dengan relasi mitra dan owner
         $offers = Offer::where('order_id', $orderId)
-            ->with(['mitra.owner']) // Memuat relasi mitra dan owner
+            ->with(['mitra.owner'])
             ->get();
 
 
@@ -264,7 +262,7 @@ class OrderController extends Controller
         $notification->sendNotification($userMitra->fcmTokens()->pluck('fcm_token')->toArray(), 'Offer', 'Penawaran kamu telah dipilih');
 
         if (!$offerList->isEmpty()) {
-            foreach($offerList as $offer) {
+            foreach ($offerList as $offer) {
                 $userMitra = $offer->mitra->owner;
                 $notification->sendNotification($userMitra->fcmTokens()->pluck('fcm_token')->toArray(), 'Offer', 'Sayang Sekali Kamu Tidak Dipilih');
             }
@@ -286,245 +284,260 @@ class OrderController extends Controller
     public function orderList(Request $request, $id = null)
     {
         $user = $request->user();
-        $statusQuery = $request->query('status');
         $statsQuery = $request->query('stats');
-        $query = Order::query();
+        $statusQuery = $request->query('status');
 
-        // Cek apakah pengguna adalah admin jika ada query stats
         if ($statsQuery && $user->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Cek role pengguna
-        if ($user->role == 'client') {
-            $query->where('user_id', $user->id);
+        $query = Order::query();
+
+        $query = $this->applyRoleBasedFilters($query, $user);
+
+        if ($id != null) {
+            return $this->getOrderDetails($id, $user);
         }
 
-        if ($user->role == 'mitra') {
+        if ($statusQuery) {
+            return $this->filterOrdersByStatus($query, $statusQuery, $user);
+        }
+
+        if ($statsQuery) {
+            return $this->handleStatsQuery($request, $query, $statsQuery);
+        }
+
+        return $this->getOrdersList($query);
+    }
+
+    private function applyRoleBasedFilters($query, $user)
+    {
+        if ($user->role == 'client') {
+            $query->where('user_id', $user->id);
+        } elseif ($user->role == 'mitra') {
             $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
 
             if (!$mitra) {
-                return response()->json([
-                    'message' => "You are Mitra, but you don't have a Mitra yet"
-                ], 400);
+                abort(400, "You are Mitra, but you don't have a Mitra yet");
             }
 
-            // Ambil semua helper_id yang berhubungan dengan mitra
             $helperIds = $mitra->helpers()->pluck('helpers.id')->toArray();
-
             $query->whereHas('problem', function ($q) use ($helperIds) {
                 $q->whereIn('helper_id', $helperIds)->where('status', 'pending');
             });
         }
 
-        // Cek jika ada id untuk mendapatkan order tertentu
-        if ($id != null) {
-            $order = Order::find($id);
+        return $query;
+    }
 
-            if (!$order) {
-                return response()->json(['message' => 'order not found'], 400);
+    private function getOrderDetails($id, $user)
+    {
+        $order = Order::find($id);
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 400);
+        }
+
+        $this->authorizeOrderAccess($order, $user);
+
+        return response()->json($this->formatOrderDetails($order), 200);
+    }
+
+    private function authorizeOrderAccess($order, $user)
+    {
+        if ($user->role == 'client' && $order->user_id != $user->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        if ($user->role == 'mitra') {
+            $mitra = Mitra::where('owner_identifier', $user->identifier)->first();
+            $sameHelper = $mitra->helpers()->where('id', $order->problem->helper_id)->exists();
+            if (!$sameHelper) {
+                abort(403, 'Unauthorized');
             }
+        }
+    }
 
-            if ($user->role == 'client') {
-                if ($order->user_id != $user->id) {
-                    return response()->json(['message' => 'Unauthorized'], 403);
+    private function formatOrderDetails($order)
+    {
+        $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
+
+        $response = [
+            'order_id' => $order->id,
+            'order_status' => $order->status,
+            'latitude' => $order->latitude,
+            'longitude' => $order->longitude,
+            'description' => $order->description,
+            'order_time' => $order->order_time,
+            'user' => $order->user->username,
+            'user_profile' => asset($order->user->image_profile),
+            'price' => $order->offer_id ? $order->acceptedOffer->total_price : 0,
+            'mitra' => $order->offer_id ? $order->acceptedOffer->mitra->name : null,
+            'mitra_profile' => $order->offer_id ? asset($order->acceptedOffer->mitra->owner->image_profile) : null,
+            'phone_number_mitra' => $order->offer_id ? $order->acceptedOffer->mitra->owner->phone_number : null,
+            'problem' => $order->problem->name,
+            'attachments' => array_map(fn($attachment) => asset($attachment), $attachments),
+        ];
+
+        return $response;
+    }
+
+    private function filterOrdersByStatus($query, $statusQuery, $user)
+    {
+        if ($user->role == 'mitra') {
+            abort(403, 'Unauthorized');
+        }
+
+        $query->where(
+            $statusQuery === 'complete'
+                ? ['status', ['complete', 'rated']]
+                : ['status', $statusQuery]
+        );
+
+        return $this->getOrdersList($query);
+    }
+
+    private function handleStatsQuery($request, $query, $statsQuery)
+    {
+        switch ($statsQuery) {
+            case 'hourly':
+                $date = $request->query('date');
+                if (!$date) {
+                    return response()->json(['message' => 'Date Query is required']);
                 }
-            }
 
-            if ($user->role == 'mitra') {
-                $sameHelper = $mitra->helpers()->where('id', $order->problem->helper_id)->exists();
-                if (!$sameHelper) {
-                    return response()->json(['message' => 'Unauthorized'], 403);
+                try {
+                    $date = Carbon::createFromFormat('Y-m-d', $date);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Invalid date format. Use Y-m-d.'], 400);
                 }
-            }
 
-            $attachments = OrderAttachment::where('order_id', $order->id)->pluck('image_path')->toArray();
-            $response = [
-                'order_id' => $order->id,
-                'order_status' => $order->status,
-                'latitude' => $order->latitude,
-                'longitude' => $order->longitude,
-                'description' => $order->description,
-                'order_time' => $order->order_time,
-                'user' => $order->user->username,
-                'user_profile' => asset($order->user->image_profile),
-                'price' => 0,
-                'mitra' => null,
-                'mitra_profile' => null,
-                'phone_number_mitra' => null,
-                'problem' => $order->problem->name,
-                'attachments' => array_map(function ($attachment) {
-                    return asset($attachment);
-                }, $attachments)
-            ];
+                $orders = $query->whereDate('order_time', $date)
+                    ->selectRaw('HOUR(order_time) as hour, COUNT(*) as count')
+                    ->groupBy('hour')
+                    ->get();
 
-            if ($order->offer_id != null) {
-                $response['price'] = $order->acceptedOffer->total_price;
-                $response['mitra'] = $order->acceptedOffer->mitra->name;
-                $response['mitra_profile'] = asset($order->acceptedOffer->mitra->owner->image_profile);
-                $response['phone_number_mitra'] = $order->acceptedOffer->mitra->owner->phone_number;
-            }
+                $result = [];
+                for ($i = 0; $i < 24; $i++) {
+                    $result[$i] = ['period' => 'Jam ' . $i, 'count' => 0];
+                }
 
-            return response()->json($response, 200);
+                foreach ($orders as $order) {
+                    $result[$order['hour']]['count'] += $order['count'];
+                }
+
+                return response()->json($result, 200);
+
+            case 'daily':
+                $startDate = $request->query('start_date');
+                $endDate = $request->query('end_date');
+
+                if (!$startDate || !$endDate) {
+                    return response()->json(['message' => 'Start Date and End Date Query is required']);
+                }
+
+                try {
+                    $startDate = Carbon::createFromFormat('Y-m-d', $startDate);
+                    $endDate = Carbon::createFromFormat('Y-m-d', $endDate);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Invalid date format. Use Y-m-d.'], 400);
+                }
+
+                if ($startDate > $endDate) {
+                    return response()->json(['message' => 'Start date must be less than or equal to end date.'], 400);
+                }
+
+                $orders = $query->whereBetween('order_time', [$startDate, $endDate])
+                    ->selectRaw('DATE(order_time) as date, COUNT(*) as count')
+                    ->groupBy('date')
+                    ->get();
+
+                $dateRange = [];
+                $period = Carbon::parse($startDate)->daysUntil($endDate);
+
+                foreach ($period as $date) {
+                    $dateString = $date->toDateString();
+                    $count = $orders->firstWhere('date', $dateString)->count ?? 0;
+                    $dateRange[] = ['period' => $dateString, 'count' => $count];
+                }
+
+                return response()->json($dateRange, 200);
+            case 'monthly':
+                $year = $request->query('year');
+
+                if (!$year) {
+                    return response()->json(['message' => 'Year Query is required']);
+                }
+
+                if (!$year || !is_numeric($year) || $year < 2000 || $year > date('Y')) {
+                    return response()->json(['message' => 'Invalid year.'], 400);
+                }
+
+                $orders = $query->whereYear('order_time', $year)
+                    ->selectRaw('MONTH(order_time) as month, COUNT(*) as count')
+                    ->groupBy('month')
+                    ->get();
+
+                $result = array_fill(1, 12, ['period' => '', 'count' => 0]);
+                foreach ($orders as $order) {
+                    $months = [
+                        1 => 'January',
+                        2 => 'February',
+                        3 => 'March',
+                        4 => 'April',
+                        5 => 'May',
+                        6 => 'June',
+                        7 => 'July',
+                        8 => 'August',
+                        9 => 'September',
+                        10 => 'October',
+                        11 => 'November',
+                        12 => 'December',
+                    ];
+                    $result[$order->month]['period'] = $months[$order->month];
+                    $result[$order->month]['count'] = $order->count;
+                }
+
+                return response()->json(array_values($result), 200);
+            case 'yearly':
+                $startYear = $request->query('start_year');
+                $endYear = $request->query('end_year');
+
+                if (!$startYear || !$endYear) {
+                    return response()->json(['message' => 'Start year and End year Query is Required']);
+                }
+
+                if (!$startYear || !$endYear || !is_numeric($startYear) || !is_numeric($endYear)) {
+                    return response()->json(['message' => 'Invalid year format.'], 400);
+                }
+
+                if ($startYear > $endYear) {
+                    return response()->json(['message' => 'Start year must be less than or equal to end year.'], 400);
+                }
+
+                $orders = $query->whereBetween(DB::raw('YEAR(order_time)'), [$startYear, $endYear])
+                    ->selectRaw('YEAR(order_time) as year, COUNT(*) as count')
+                    ->groupBy('year')
+                    ->get();
+
+                $result = [];
+                for ($year = $startYear; $year <= $endYear; $year++) {
+                    $result[] = ['period' => $year, 'count' => 0];
+                }
+
+                foreach ($orders as $order) {
+                    $index = $order->year - $startYear;
+                    $result[$index]['count'] = $order->count;
+                }
+
+                return response()->json($result, 200);
+            default:
+                return response()->json(['message' => 'Invalid stats query'], 400);
         }
+    }
 
-        if ($statusQuery) {
-            if ($user->role == 'mitra') {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            if ($statusQuery == 'complete') {
-                $query->whereIn('status', ['complete', 'rated']);
-            } else {
-                $query->where('status', $statusQuery);
-            }
-        }
-
-        // Jika ada query stats, kita jalankan logika untuk statistik
-        if ($statsQuery) {
-            switch ($statsQuery) {
-                case 'hourly':
-                    $date = $request->date;
-                    if (!$date) {
-                        return response()->json(['message' => 'Date is required']);
-                    }
-
-                    // Validasi date
-                    if (!$date || !Carbon::createFromFormat('Y-m-d', $date)) {
-                        return response()->json(['message' => 'Invalid date format. Use Y-m-d.'], 400);
-                    }
-
-                    $orders = $query->whereDate('order_time', $date)
-                        ->selectRaw('HOUR(order_time) as hour, COUNT(*) as count')
-                        ->groupBy('hour')
-                        ->get();
-
-                    $result = [];
-                    for ($i = 0; $i < 24; $i++) {
-                        $result[$i] = ['period' => 'Jam ' . $i, 'count' => 0];
-                    }
-
-                    foreach ($orders as $order) {
-                        $result[$order['hour']]['count'] += $order['count'];
-                    }
-
-                    return response()->json($result, 200);
-
-                case 'daily':
-                    $startDate = $request->start_date;
-                    $endDate = $request->end_date;
-
-                    if (!$startDate || !$endDate) {
-                        return response()->json(['message' => 'Start Date and End Date is required']);
-                    }
-
-                    // Validasi start_date dan end_date
-                    if (!$startDate || !$endDate || !Carbon::createFromFormat('Y-m-d', $startDate) || !Carbon::createFromFormat('Y-m-d', $endDate)) {
-                        return response()->json(['message' => 'Invalid date format. Use Y-m-d.'], 400);
-                    }
-
-                    if ($startDate > $endDate) {
-                        return response()->json(['message' => 'Start date must be less than or equal to end date.'], 400);
-                    }
-
-                    // Ambil data order dalam rentang tanggal
-                    $orders = $query->whereBetween('order_time', [$startDate, $endDate])
-                        ->selectRaw('DATE(order_time) as date, COUNT(*) as count')
-                        ->groupBy('date')
-                        ->get();
-
-                    // Menghasilkan array untuk menyimpan hasil dari startDate ke endDate
-                    $dateRange = [];
-                    $period = Carbon::parse($startDate)->daysUntil($endDate);
-
-                    foreach ($period as $date) {
-                        $dateString = $date->toDateString();
-                        $count = $orders->firstWhere('date', $dateString)->count ?? 0; // Ambil count atau 0 jika tidak ada
-                        $dateRange[] = ['period' => $dateString, 'count' => $count];
-                    }
-
-                    return response()->json($dateRange, 200);
-
-                case 'monthly':
-                    $year = $request->year;
-
-                    if (!$year) {
-                        return response()->json(['message' => 'Year id required']);
-                    }
-
-                    // Validasi year
-                    if (!$year || !is_numeric($year) || $year < 2000 || $year > date('Y')) {
-                        return response()->json(['message' => 'Invalid year.'], 400);
-                    }
-
-                    $orders = $query->whereYear('order_time', $year)
-                        ->selectRaw('MONTH(order_time) as month, COUNT(*) as count')
-                        ->groupBy('month')
-                        ->get();
-
-                    $result = array_fill(1, 12, ['period' => '', 'count' => 0]);
-                    foreach ($orders as $order) {
-                        // Pastikan bulan disimpan dengan benar di index array
-                        $months = [
-                            1 => 'January',
-                            2 => 'February',
-                            3 => 'March',
-                            4 => 'April',
-                            5 => 'May',
-                            6 => 'June',
-                            7 => 'July',
-                            8 => 'August',
-                            9 => 'September',
-                            10 => 'October',
-                            11 => 'November',
-                            12 => 'December',
-                        ];
-                        $result[$order->month]['period'] = $months[$order->month];
-                        $result[$order->month]['count'] = $order->count;
-                    }
-
-                    return response()->json(array_values($result), 200);
-
-                case 'yearly':
-                    $startYear = $request->start_year;
-                    $endYear = $request->end_year;
-
-                    if (!$startYear || !$endYear) {
-                        return response()->json(['message' => 'Start year and End year is Required']);
-                    }
-
-                    // Validasi start_year dan end_year
-                    if (!$startYear || !$endYear || !is_numeric($startYear) || !is_numeric($endYear)) {
-                        return response()->json(['message' => 'Invalid year format.'], 400);
-                    }
-
-                    if ($startYear > $endYear) {
-                        return response()->json(['message' => 'Start year must be less than or equal to end year.'], 400);
-                    }
-
-                    $orders = $query->whereBetween(DB::raw('YEAR(order_time)'), [$startYear, $endYear])
-                        ->selectRaw('YEAR(order_time) as year, COUNT(*) as count')
-                        ->groupBy('year')
-                        ->get();
-
-                    $result = [];
-                    for ($year = $startYear; $year <= $endYear; $year++) {
-                        $result[] = ['period' => $year, 'count' => 0];
-                    }
-
-                    foreach ($orders as $order) {
-                        $index = $order->year - $startYear;
-                        $result[$index]['count'] = $order->count;
-                    }
-
-                    return response()->json($result, 200);
-
-                default:
-                    return response()->json(['message' => 'Invalid stats query'], 400);
-            }
-        }
-
-        // Fetching orders without statistics
+    private function getOrdersList($query)
+    {
         $orders = $query->with(['user', 'category'])->get();
 
         if ($orders->isEmpty()) {
@@ -534,7 +547,6 @@ class OrderController extends Controller
         return response()->json(
             $orders->map(function ($order) {
                 $attachments = OrderAttachment::where('order_id', $order->id)->get();
-                $price = $order->offer_id != null ?  number_format($order->acceptedOffer->total_price, 0, '.', '.') : '0';
                 return [
                     'id' => $order->id,
                     'category' => $order->category->name,
@@ -542,10 +554,7 @@ class OrderController extends Controller
                     'latitude' => $order->latitude,
                     'longitude' => $order->longitude,
                     'description' => $order->description,
-                    'attachment' => $attachments->map(function ($attachment) {
-                        $imageUrl = asset($attachment->image_path);
-                        return $imageUrl;
-                    }),
+                    'attachment' => $attachments->map(fn($attachment) => asset($attachment->image_path)),
                 ];
             }),
             200
@@ -561,41 +570,42 @@ class OrderController extends Controller
             return response()->json(['error' => 'Order not found'], 400);
         }
 
-        $mitra = Mitra::find($order->acceptedOffer->mitra_id);
-
-        if (!$mitra || $mitra->owner_identifier != $user->identifier) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $status = $request->status;
-        $validStatuses = ['pending', 'otw', 'arrived', 'in_progress', 'complete'];
+        $validStatuses = [];
+
+        if ($user->role == 'client') {
+            $validStatuses = ['complete'];
+        } else {
+            $validStatuses = ['pending', 'otw', 'arrived', 'in_progress'];
+            $mitra = Mitra::find($order->acceptedOffer->mitra_id);
+
+            if (!$mitra || $mitra->owner_identifier != $user->identifier) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
 
         if (!in_array($status, $validStatuses)) {
             return response()->json(['error' => 'Invalid status'], 400);
         }
 
-        // Cek apakah status baru sesuai urutan dan tidak melompat
         $currentStatusIndex = array_search($order->status, $validStatuses);
         $newStatusIndex = array_search($status, $validStatuses);
 
-        // Pastikan status baru tepat satu level di atas status saat ini
-        if ($newStatusIndex != $currentStatusIndex + 1) {
+        if ($user->role == 'mitra' && $newStatusIndex != $currentStatusIndex + 1) {
             return response()->json(['error' => 'Status must be updated sequentially'], 400);
         }
 
-        if ($status == 'complete' && $user->role != 'client') {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($user->role == 'client') {
+            $mitra = $order->acceptedOffer->mitra;
+            $userOrder = User::find($mitra->owner->id);
+            $notification = new NotificationController();
+            $notification->sendNotification($userOrder->fcmTokens()->pluck('fcm_token')->toArray(), 'order', 'status updated', ['status' => $status, 'time' => Carbon::now()]);
+        } else {
+            $userOrder = User::find($order->user_id);
+            $notification = new NotificationController();
+            $notification->sendNotification($userOrder->fcmTokens()->pluck('fcm_token')->toArray(), 'order', 'status updated', ['status' => $status, 'time' => Carbon::now()]);
         }
 
-        if ($status != 'complete' && $user->role == 'client') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $userOrder = User::find($order->user_id);
-        $notification = new NotificationController();
-        $notification->sendNotification($userOrder->fcmTokens()->pluck('fcm_token')->toArray(), 'order', 'status updated', ['status' => $status, 'time' => Carbon::now()]);
-
-        // Update status di database
         $order->status = $status;
         $order->save();
 

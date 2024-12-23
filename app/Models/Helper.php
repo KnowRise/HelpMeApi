@@ -9,6 +9,8 @@ class Helper extends Model
 {
     use HasFactory;
 
+    protected $fillable = ['name'];
+
     public function category() {
         return $this->belongsTo(Category::class);
     }
