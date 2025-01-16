@@ -14,7 +14,6 @@ class CategoryController extends Controller
 {
     public function storeCategory(Request $request, $id = null)
     {
-        dd($request->all());
         $validator = Validator::make($request->all(), ['name' => ['required', 'string']]);
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()], 400);
